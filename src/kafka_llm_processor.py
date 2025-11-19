@@ -40,7 +40,7 @@ class LLMProcessor:
         self.session = requests.Session()
         self.session.headers.update({'Content-Type': 'application/json'})
         
-    def process_document(self, document_text: str, max_tokens: int = 200) -> Optional[Dict]:
+    def process_document(self, document_text: str, max_tokens: int = 200, retries: int = 1) -> Optional[Dict]:
         """
         Process a document through LLM inference.
         Supports both OpenAI-compatible API and Ollama API.
@@ -48,6 +48,7 @@ class LLMProcessor:
         Args:
             document_text: The text content to process
             max_tokens: Maximum tokens in response
+            retries: Number of retries on timeout (default: 1)
             
         Returns:
             LLM response dict or None if error
@@ -82,25 +83,47 @@ class LLMProcessor:
                 use_ollama = True
         
         if use_ollama:
-            # Use Ollama API format
-            try:
-                ollama_payload = {
-                    "model": self.model_name,
-                    "prompt": prompt,
-                    "stream": False,  # Disable streaming to get single JSON response
-                    "options": {
-                        "temperature": 0.7,
-                        "top_p": 0.9,
-                        "num_predict": max_tokens
+            # Use Ollama API format with retry logic
+            for attempt in range(retries + 1):
+                try:
+                    ollama_payload = {
+                        "model": self.model_name,
+                        "prompt": prompt,
+                        "stream": False,  # Disable streaming to get single JSON response
+                        "options": {
+                            "temperature": 0.7,
+                            "top_p": 0.9,
+                            "num_predict": max_tokens
+                        }
                     }
-                }
-                
-                response = self.session.post(
-                    f"{self.llm_url}/api/generate",
-                    json=ollama_payload,
-                    timeout=self.timeout
-                )
-                response.raise_for_status()
+                    
+                    if attempt > 0:
+                        logger.info(f"Retrying LLM request (attempt {attempt + 1}/{retries + 1})")
+                    
+                    response = self.session.post(
+                        f"{self.llm_url}/api/generate",
+                        json=ollama_payload,
+                        timeout=self.timeout
+                    )
+                    response.raise_for_status()
+                    break  # Success, exit retry loop
+                except requests.exceptions.Timeout:
+                    if attempt < retries:
+                        logger.warning(f"LLM request timeout (attempt {attempt + 1}), retrying...")
+                        continue
+                    else:
+                        logger.error(f"LLM request timeout after {retries + 1} attempts")
+                        return None
+                except requests.exceptions.RequestException as e:
+                    if attempt < retries:
+                        logger.warning(f"LLM request failed (attempt {attempt + 1}): {e}, retrying...")
+                        continue
+                    else:
+                        logger.error(f"LLM request failed after {retries + 1} attempts: {e}")
+                        return None
+            
+            # Parse response (only reached if request succeeded)
+            try:
                 
                 # Parse JSON response
                 # Ollama returns single JSON object when stream=False
@@ -154,12 +177,6 @@ class LLMProcessor:
                 logger.error(f"JSON parsing error: {e}")
                 if 'response' in locals():
                     logger.error(f"Response text (first 500 chars): {response.text[:500]}")
-                return None
-            except requests.exceptions.Timeout:
-                logger.error(f"LLM request timeout after {self.timeout}s")
-                return None
-            except requests.exceptions.RequestException as e:
-                logger.error(f"LLM request failed: {e}")
                 return None
             except Exception as e:
                 logger.error(f"Unexpected error in LLM processing: {e}", exc_info=True)
@@ -347,7 +364,7 @@ def load_config() -> Dict:
         'consumer_group': os.getenv('CONSUMER_GROUP', 'llm-processor-group'),
         'llm_url': os.getenv('LLM_URL', 'http://localhost:11434'),  # Ollama default port
         'model_name': os.getenv('MODEL_NAME', 'llama2'),  # Default Ollama model
-        'llm_timeout': int(os.getenv('LLM_TIMEOUT', '60'))  # Longer timeout for Ollama
+        'llm_timeout': int(os.getenv('LLM_TIMEOUT', '120'))  # Longer timeout for CPU-based Ollama (2 minutes)
     }
 
 
