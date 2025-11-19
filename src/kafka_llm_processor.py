@@ -43,6 +43,7 @@ class LLMProcessor:
     def process_document(self, document_text: str, max_tokens: int = 200) -> Optional[Dict]:
         """
         Process a document through LLM inference.
+        Supports both OpenAI-compatible API and Ollama API.
         
         Args:
             document_text: The text content to process
@@ -51,28 +52,85 @@ class LLMProcessor:
         Returns:
             LLM response dict or None if error
         """
+        prompt = f"Extract key information from the following financial document:\n\n{document_text}"
+        
+        # Try OpenAI-compatible API first (vLLM, OpenAI, etc.)
         payload = {
             "model": self.model_name,
-            "prompt": f"Extract key information from the following financial document:\n\n{document_text}",
+            "prompt": prompt,
             "max_tokens": max_tokens,
             "temperature": 0.7,
             "top_p": 0.9
         }
         
         try:
+            # Try OpenAI-compatible endpoint first
             response = self.session.post(
                 f"{self.llm_url}/v1/completions",
                 json=payload,
                 timeout=self.timeout
             )
             response.raise_for_status()
-            return response.json()
-        except requests.exceptions.Timeout:
-            logger.error(f"LLM request timeout after {self.timeout}s")
-            return None
-        except requests.exceptions.RequestException as e:
-            logger.error(f"LLM request failed: {e}")
-            return None
+            result = response.json()
+            
+            # Convert Ollama response format if needed
+            if 'response' in result and 'choices' not in result:
+                # Ollama format: {"response": "...", "done": true}
+                return {
+                    "choices": [{
+                        "text": result.get('response', ''),
+                        "index": 0,
+                        "finish_reason": "stop" if result.get('done') else "length"
+                    }],
+                    "usage": {
+                        "prompt_tokens": len(prompt.split()),
+                        "completion_tokens": len(result.get('response', '').split()),
+                        "total_tokens": len(prompt.split()) + len(result.get('response', '').split())
+                    }
+                }
+            
+            return result
+            
+        except requests.exceptions.RequestException:
+            # Fallback to Ollama API format
+            try:
+                ollama_payload = {
+                    "model": self.model_name,
+                    "prompt": prompt,
+                    "options": {
+                        "temperature": 0.7,
+                        "top_p": 0.9,
+                        "num_predict": max_tokens
+                    }
+                }
+                
+                response = self.session.post(
+                    f"{self.llm_url}/api/generate",
+                    json=ollama_payload,
+                    timeout=self.timeout
+                )
+                response.raise_for_status()
+                result = response.json()
+                
+                # Convert Ollama format to OpenAI-compatible
+                return {
+                    "choices": [{
+                        "text": result.get('response', ''),
+                        "index": 0,
+                        "finish_reason": "stop" if result.get('done') else "length"
+                    }],
+                    "usage": {
+                        "prompt_tokens": result.get('prompt_eval_count', len(prompt.split())),
+                        "completion_tokens": result.get('eval_count', len(result.get('response', '').split())),
+                        "total_tokens": result.get('prompt_eval_count', 0) + result.get('eval_count', 0)
+                    }
+                }
+            except requests.exceptions.Timeout:
+                logger.error(f"LLM request timeout after {self.timeout}s")
+                return None
+            except requests.exceptions.RequestException as e:
+                logger.error(f"LLM request failed: {e}")
+                return None
 
 
 class KafkaLLMProcessor:
@@ -254,9 +312,9 @@ def load_config() -> Dict:
         'input_topic': os.getenv('INPUT_TOPIC', 'financial-documents'),
         'output_topic': os.getenv('OUTPUT_TOPIC', 'llm-results'),
         'consumer_group': os.getenv('CONSUMER_GROUP', 'llm-processor-group'),
-        'llm_url': os.getenv('LLM_URL', 'http://localhost:8000'),
-        'model_name': os.getenv('MODEL_NAME', 'mistralai/Mistral-7B-Instruct-v0.2'),
-        'llm_timeout': int(os.getenv('LLM_TIMEOUT', '30'))
+        'llm_url': os.getenv('LLM_URL', 'http://localhost:11434'),  # Ollama default port
+        'model_name': os.getenv('MODEL_NAME', 'llama2'),  # Default Ollama model
+        'llm_timeout': int(os.getenv('LLM_TIMEOUT', '60'))  # Longer timeout for Ollama
     }
 
 

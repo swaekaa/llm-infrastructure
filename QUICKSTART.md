@@ -1,6 +1,50 @@
 # Quick Start Guide
 
-## Option 1: Run vLLM with Docker (Simplest - No Kubernetes)
+## Option 1: Run with Ollama (Recommended - Works on CPU)
+
+### Step 1: Start All Services
+```powershell
+cd C:\Users\pooja\llm-infrastructure
+docker compose up -d
+```
+
+This starts:
+- Zookeeper
+- Kafka  
+- Ollama (LLM server)
+
+### Step 2: Pull a Model (First Time Only)
+```powershell
+# Wait for Ollama to start (~10 seconds)
+python scripts/setup_ollama.py --model llama2
+
+# Or use other models:
+# python scripts/setup_ollama.py --model mistral
+# python scripts/setup_ollama.py --model codellama
+```
+
+### Step 3: Install Python Dependencies
+```powershell
+pip install -r requirements.txt
+```
+
+### Step 4: Start the Pipeline
+```powershell
+# Terminal 1: Start processor
+python src/kafka_llm_processor.py
+
+# Terminal 2: Send test data
+python src/test_producer.py --count 3
+
+# Terminal 3 (optional): View results
+python src/test_consumer.py --max-messages 3
+```
+
+**✅ Deliverable Complete:** Real-time Kafka → LLM → Results pipeline working!
+
+---
+
+## Option 2: Run vLLM with Docker (Requires GPU)
 
 ### Step 1: Install Docker Desktop
 1. Download: https://www.docker.com/products/docker-desktop
