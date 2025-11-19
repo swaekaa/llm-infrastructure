@@ -54,49 +54,40 @@ class LLMProcessor:
         """
         prompt = f"Extract key information from the following financial document:\n\n{document_text}"
         
-        # Try OpenAI-compatible API first (vLLM, OpenAI, etc.)
-        payload = {
-            "model": self.model_name,
-            "prompt": prompt,
-            "max_tokens": max_tokens,
-            "temperature": 0.7,
-            "top_p": 0.9
-        }
+        # Use Ollama API (default) or OpenAI-compatible API
+        # Check if URL contains ollama port (11434) or use OpenAI-compatible
+        use_ollama = '11434' in self.llm_url or 'ollama' in self.llm_url.lower()
         
-        try:
-            # Try OpenAI-compatible endpoint first
-            response = self.session.post(
-                f"{self.llm_url}/v1/completions",
-                json=payload,
-                timeout=self.timeout
-            )
-            response.raise_for_status()
-            result = response.json()
+        if not use_ollama:
+            # Try OpenAI-compatible API first (vLLM, OpenAI, etc.)
+            payload = {
+                "model": self.model_name,
+                "prompt": prompt,
+                "max_tokens": max_tokens,
+                "temperature": 0.7,
+                "top_p": 0.9
+            }
             
-            # Convert Ollama response format if needed
-            if 'response' in result and 'choices' not in result:
-                # Ollama format: {"response": "...", "done": true}
-                return {
-                    "choices": [{
-                        "text": result.get('response', ''),
-                        "index": 0,
-                        "finish_reason": "stop" if result.get('done') else "length"
-                    }],
-                    "usage": {
-                        "prompt_tokens": len(prompt.split()),
-                        "completion_tokens": len(result.get('response', '').split()),
-                        "total_tokens": len(prompt.split()) + len(result.get('response', '').split())
-                    }
-                }
-            
-            return result
-            
-        except requests.exceptions.RequestException:
-            # Fallback to Ollama API format
+            try:
+                response = self.session.post(
+                    f"{self.llm_url}/v1/completions",
+                    json=payload,
+                    timeout=self.timeout
+                )
+                response.raise_for_status()
+                result = response.json()
+                return result
+            except (requests.exceptions.RequestException, ValueError, json.JSONDecodeError) as e:
+                logger.warning(f"OpenAI-compatible API failed, trying Ollama: {e}")
+                use_ollama = True
+        
+        if use_ollama:
+            # Use Ollama API format
             try:
                 ollama_payload = {
                     "model": self.model_name,
                     "prompt": prompt,
+                    "stream": False,  # Disable streaming to get single JSON response
                     "options": {
                         "temperature": 0.7,
                         "top_p": 0.9,
@@ -110,7 +101,41 @@ class LLMProcessor:
                     timeout=self.timeout
                 )
                 response.raise_for_status()
-                result = response.json()
+                
+                # Parse JSON response
+                # Ollama returns single JSON object when stream=False
+                try:
+                    result = response.json()
+                except json.JSONDecodeError as e:
+                    # Handle case where response might have extra data
+                    response_text = response.text.strip()
+                    # Try to parse just the JSON part
+                    if '\n' in response_text:
+                        # Multiple lines - take the last complete JSON
+                        lines = [l.strip() for l in response_text.split('\n') if l.strip()]
+                        result = None
+                        for line in reversed(lines):
+                            try:
+                                result = json.loads(line)
+                                if isinstance(result, dict) and 'response' in result:
+                                    break
+                            except json.JSONDecodeError:
+                                continue
+                        if result is None:
+                            raise json.JSONDecodeError("No valid JSON found", response_text, 0)
+                    else:
+                        # Single line - try to extract JSON
+                        # Remove any trailing non-JSON text
+                        try:
+                            result = json.loads(response_text)
+                        except json.JSONDecodeError:
+                            # Try to find JSON object boundaries
+                            start = response_text.find('{')
+                            end = response_text.rfind('}') + 1
+                            if start >= 0 and end > start:
+                                result = json.loads(response_text[start:end])
+                            else:
+                                raise
                 
                 # Convert Ollama format to OpenAI-compatible
                 return {
@@ -125,11 +150,19 @@ class LLMProcessor:
                         "total_tokens": result.get('prompt_eval_count', 0) + result.get('eval_count', 0)
                     }
                 }
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON parsing error: {e}")
+                if 'response' in locals():
+                    logger.error(f"Response text (first 500 chars): {response.text[:500]}")
+                return None
             except requests.exceptions.Timeout:
                 logger.error(f"LLM request timeout after {self.timeout}s")
                 return None
             except requests.exceptions.RequestException as e:
                 logger.error(f"LLM request failed: {e}")
+                return None
+            except Exception as e:
+                logger.error(f"Unexpected error in LLM processing: {e}", exc_info=True)
                 return None
 
 
