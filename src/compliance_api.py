@@ -11,8 +11,11 @@ Provides REST API for querying audit logs for regulatory compliance:
 
 import logging
 import os
+import time
+import json
 from datetime import datetime, timedelta
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response, stream_with_context
+from flask_cors import CORS
 from functools import wraps
 from typing import Dict, Optional
 import hashlib
@@ -30,6 +33,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+CORS(app, resources={r"/api/*": {"origins": ["http://localhost:3000", "http://localhost:8501"]}})  # Enable CORS for frontend
 
 # Initialize audit logger
 audit_logger = AuditLogger()
@@ -571,6 +575,43 @@ def export_logs():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/compliance/stream', methods=['GET'])
+def stream_compliance_updates():
+    """
+    Server-Sent Events endpoint for real-time compliance updates.
+    Streams statistics updates every 2 seconds.
+    """
+    def generate():
+        last_count = 0
+        while True:
+            try:
+                stats = audit_logger.get_statistics()
+                current_count = stats.get('total_requests', 0)
+                
+                # Only send if data changed
+                if current_count != last_count:
+                    data = json.dumps(stats)
+                    yield f"data: {data}\n\n"
+                    last_count = current_count
+                else:
+                    # Send heartbeat
+                    yield f": heartbeat\n\n"
+                
+                time.sleep(2)
+            except Exception as e:
+                logger.error(f"Error in SSE stream: {e}")
+                yield f"data: {{\"error\": \"Stream error\"}}\n\n"
+                time.sleep(5)
+    
+    return Response(stream_with_context(generate()), 
+                    mimetype='text/event-stream',
+                    headers={
+                        'Cache-Control': 'no-cache',
+                        'X-Accel-Buffering': 'no',
+                        'Connection': 'keep-alive'
+                    })
+
+
 if __name__ == '__main__':
     port = int(os.getenv('COMPLIANCE_API_PORT', 5000))
     host = os.getenv('COMPLIANCE_API_HOST', '0.0.0.0')
@@ -582,6 +623,7 @@ if __name__ == '__main__':
     logger.info("  GET  /api/compliance/duplicates/<hash> - Find duplicates")
     logger.info("  GET  /api/compliance/statistics - Get statistics")
     logger.info("  POST /api/compliance/export - Export logs to CSV")
+    logger.info("  GET  /api/compliance/stream - SSE real-time updates")
     
-    app.run(host=host, port=port, debug=False)
+    app.run(host=host, port=port, debug=False, threaded=True)
 

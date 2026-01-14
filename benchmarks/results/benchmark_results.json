@@ -1,0 +1,111 @@
+{
+  "timestamp": "2026-01-11 18:44:23",
+  "benchmarks": {
+    "audit_logging": {
+      "name": "Audit Logging Benchmark",
+      "operations": [
+        {
+          "name": "100 single request logs",
+          "count": 100,
+          "total_time_ms": 1193.9592999999995,
+          "avg_latency_ms": 11.939592999999995,
+          "throughput_req_per_sec": 83.75494876584155
+        },
+        {
+          "name": "Query 10x",
+          "count": 10,
+          "total_time_ms": 18.340300000000198,
+          "avg_latency_ms": 1.8340300000000198
+        },
+        {
+          "name": "Statistics computation",
+          "count": 5,
+          "total_time_ms": 4.475400000000462,
+          "avg_latency_ms": 0.8950800000000925
+        }
+      ],
+      "summary": {
+        "total_requests_logged": 100,
+        "avg_log_latency_ms": 11.939592999999995,
+        "query_latency_ms": 1.8340300000000198,
+        "throughput_req_per_sec": 22344.371452828724
+      }
+    },
+    "drift_detection": {
+      "name": "Drift Detection Benchmark",
+      "operations": [
+        {
+          "name": "Baseline establishment",
+          "samples": 100,
+          "total_time_ms": 122.64009999999992,
+          "avg_latency_ms": 1.2264009999999992
+        },
+        {
+          "name": "Normal sample processing",
+          "samples": 20,
+          "false_positive_rate_percent": 100.0,
+          "total_time_ms": 26.07060000000061,
+          "avg_latency_ms": 1.3035300000000305
+        },
+        {
+          "name": "Drifted sample detection",
+          "samples": 30,
+          "drift_detection_rate_percent": 63.33333333333333,
+          "total_time_ms": 27.56779999999992,
+          "avg_latency_ms": 0.918926666666664
+        }
+      ],
+      "summary": {
+        "baseline_establishment_ms": 122.64009999999992,
+        "normal_processing_false_positive_rate": 100.0,
+        "drift_detection_rate": 63.33333333333333,
+        "avg_detection_latency_ms": 0.918926666666664
+      }
+    },
+    "throughput": {
+      "name": "Synthetic Throughput Benchmark",
+      "operations": [
+        {
+          "batch_size": 1,
+          "total_time_ms": 0.005700000000885552,
+          "throughput_req_per_sec": 175438.59646397192
+        },
+        {
+          "batch_size": 10,
+          "total_time_ms": 0.020999999998494445,
+          "throughput_req_per_sec": 476190.47622461576
+        },
+        {
+          "batch_size": 50,
+          "total_time_ms": 0.06340000000015777,
+          "throughput_req_per_sec": 788643.5331210658
+        },
+        {
+          "batch_size": 100,
+          "total_time_ms": 0.11099999999863996,
+          "throughput_req_per_sec": 900900.9009119392
+        }
+      ],
+      "summary": {
+        "best_throughput_req_per_sec": 900900.9009119392,
+        "optimal_batch_size": 100
+      }
+    },
+    "memory_profiling": {
+      "name": "Memory Profiling Benchmark",
+      "operations": [
+        {
+          "name": "Audit logger (1000 entries)",
+          "memory_mb": 0.00608062744140625
+        },
+        {
+          "name": "Drift detector (500 baseline)",
+          "memory_mb": 0.0325164794921875
+        }
+      ],
+      "summary": {
+        "total_memory_mb": 0.03859710693359375
+      }
+    }
+  }
+}

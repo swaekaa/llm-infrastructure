@@ -55,6 +55,26 @@ services:
     depends_on:
       - kafka
 
+  # Frontend Dashboard (Next.js)
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: llm-dashboard
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:5000
+      NODE_ENV: production
+    depends_on:
+      - kafka
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   ollama-data:
 
