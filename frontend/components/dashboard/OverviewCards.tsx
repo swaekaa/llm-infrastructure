@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api'
-import { config } from '@/lib/config'
+import { getComplianceUrl, getDriftUrl } from '@/lib/config'
 
 interface OverviewCardsProps {
   timeRange?: string
@@ -47,8 +47,8 @@ export function OverviewCards({ timeRange = '24h' }: OverviewCardsProps) {
 
   useEffect(() => {
     // Connect to SSE streams for real-time updates
-    const complianceSource = new EventSource(config.getComplianceUrl('stream'))
-    const driftSource = new EventSource(config.getDriftUrl('stream'))
+    const complianceSource = new EventSource(getComplianceUrl('stream'))
+    const driftSource = new EventSource(getDriftUrl('stream'))
 
     complianceSource.onmessage = (event) => {
       try {

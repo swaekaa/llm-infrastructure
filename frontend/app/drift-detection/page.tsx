@@ -3,7 +3,7 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { DriftDetectionPanel } from '@/components/dashboard/DriftDetectionPanel'
 import { DriftChart } from '@/components/dashboard/DriftChart'
-import { config } from '@/lib/config'
+import { getDriftUrl } from '@/lib/config'
 import { useState } from 'react'
 
 export default function DriftDetectionPage() {
@@ -21,7 +21,7 @@ export default function DriftDetectionPage() {
   const exportAlerts = async () => {
     setIsGenerating(true)
     try {
-      const response = await fetch(config.getDriftUrl('alerts') + '?limit=500')
+      const response = await fetch(getDriftUrl('alerts') + '?limit=500')
       const data = await response.json()
       
       const csv = [

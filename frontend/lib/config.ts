@@ -31,8 +31,6 @@ interface Config {
     compliance: boolean
     auditLogs: boolean
   }
-  getComplianceUrl: (endpoint: string) => string
-  getDriftUrl: (endpoint: string) => string
 }
 
 const complianceEndpoints = {
@@ -74,16 +72,16 @@ export const config: Config = {
     driftDetection: process.env.NEXT_PUBLIC_ENABLE_DRIFT_DETECTION !== 'false',
     compliance: process.env.NEXT_PUBLIC_ENABLE_COMPLIANCE !== 'false',
     auditLogs: process.env.NEXT_PUBLIC_ENABLE_AUDIT_LOGS !== 'false'
-  },
-
-  // Helper methods to build full URLs
-  getComplianceUrl: (endpoint: string) => {
-    return `${config.api.compliance.base}${config.api.compliance.endpoints[endpoint as keyof typeof complianceEndpoints]}`
-  },
-
-  getDriftUrl: (endpoint: string) => {
-    return `${config.api.drift.base}${config.api.drift.endpoints[endpoint as keyof typeof driftEndpoints]}`
   }
+}
+
+// Helper methods to build full URLs
+export const getComplianceUrl = (endpoint: string): string => {
+  return `${config.api.compliance.base}${config.api.compliance.endpoints[endpoint as keyof typeof complianceEndpoints]}`
+}
+
+export const getDriftUrl = (endpoint: string): string => {
+  return `${config.api.drift.base}${config.api.drift.endpoints[endpoint as keyof typeof driftEndpoints]}`
 }
 
 export default config

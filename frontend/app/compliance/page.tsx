@@ -1,7 +1,7 @@
 'use client'
 
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
-import { config } from '@/lib/config'
+import { getComplianceUrl } from '@/lib/config'
 import { useState } from 'react'
 
 export default function CompliancePage() {
@@ -56,7 +56,7 @@ export default function CompliancePage() {
   const exportAuditTrail = async (format: 'csv' | 'json' | 'pdf') => {
     setIsGenerating(true)
     try {
-      const response = await fetch(config.getComplianceUrl('query'), {
+      const response = await fetch(getComplianceUrl('query'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

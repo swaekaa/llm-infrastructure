@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { config } from '@/lib/config'
+import { getComplianceUrl, getDriftUrl } from '@/lib/config'
 
 interface ServiceStatus {
   name: string
@@ -32,8 +32,8 @@ export function SystemHealthPanel({ timeRange = '24h' }: SystemHealthPanelProps)
     const checkHealth = async () => {
       try {
         // Check compliance API
-        const complianceRes = await fetch(config.getComplianceUrl('health')).catch(() => null)
-        const driftRes = await fetch(config.getDriftUrl('health')).catch(() => null)
+        const complianceRes = await fetch(getComplianceUrl('health')).catch(() => null)
+        const driftRes = await fetch(getDriftUrl('health')).catch(() => null)
 
         setServices((prev) =>
           prev.map((service) => {

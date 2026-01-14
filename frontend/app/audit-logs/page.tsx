@@ -3,7 +3,7 @@
 import { DashboardLayout } from '@/components/layout/DashboardLayout'
 import { AuditTrailTable } from '@/components/dashboard/AuditTrailTable'
 import { AuditChart } from '@/components/dashboard/AuditChart'
-import { config } from '@/lib/config'
+import { getComplianceUrl } from '@/lib/config'
 import { useState, useEffect } from 'react'
 
 export default function AuditLogsPage() {
@@ -27,7 +27,7 @@ export default function AuditLogsPage() {
     setIsExporting(true)
     try {
       // Fetch audit logs
-      const response = await fetch(config.getComplianceUrl('query'), {
+      const response = await fetch(getComplianceUrl('query'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

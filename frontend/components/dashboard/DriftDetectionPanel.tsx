@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { config } from '@/lib/config'
+import { getDriftUrl } from '@/lib/config'
 
 interface DriftAlert {
   type: string
@@ -26,7 +26,7 @@ export function DriftDetectionPanel({ timeRange = '24h' }: DriftDetectionPanelPr
     setLoading(true)
 
     // Connect to SSE stream
-    const eventSource = new EventSource(config.getDriftUrl('stream'))
+    const eventSource = new EventSource(getDriftUrl('stream'))
 
     eventSource.onmessage = (event) => {
       try {

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { config } from '@/lib/config'
+import { getComplianceUrl } from '@/lib/config'
 import { apiClient } from '@/lib/api'
 
 interface AuditLogEntry {
@@ -41,7 +41,7 @@ export function AuditTrailTable({ timeRange = '24h' }: AuditTrailTableProps) {
     setCurrentPage(1)
 
     // Connect to SSE stream
-    const eventSource = new EventSource(config.getComplianceUrl('stream'))
+    const eventSource = new EventSource(getComplianceUrl('stream'))
 
     eventSource.onmessage = async (event) => {
       try {
