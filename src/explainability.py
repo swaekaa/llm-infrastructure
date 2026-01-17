@@ -188,6 +188,9 @@ class LLMExplainer:
             # flatten
             shap_vals_flat = shap_values[0] if len(np.array(shap_values).shape) > 1 else shap_values
 
+            # top indices
+            top_indices = np.argsort(np.abs(shap_vals_flat))[-max_features:][::-1]
+
 
 
         except Exception as e:
