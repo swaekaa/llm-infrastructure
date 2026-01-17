@@ -135,10 +135,10 @@ class LLMExplainer:
     
     def explain_with_shap(self, input_text: str, max_features: int = 10) -> Dict:
         """
-        Generate explanation using SHAP (stub implementation).
+        Generate explanation using SHAP - COMPLETE IMPLEMENTATION.
         
-        Note: Full SHAP implementation requires model-specific setup.
-        This is a placeholder that can be extended.
+        
+        Chains all steps: vectorize → prepare background → create explainer → compute values
         
         Args:
             input_text: Input text to explain
@@ -147,84 +147,107 @@ class LLMExplainer:
         Returns:
             Dictionary with SHAP explanation data
         """
+        
         if not SHAP_AVAILABLE:
             return {
                 "method": "SHAP",
+                "status": "error",
                 "error": "SHAP not available. Install with: pip install shap",
                 "fallback": self._simple_explanation(input_text)
             }
         
-        # Stub implementation - extend this for full SHAP support
-        # Full implementation would require:
-        # 1. Creating a SHAP explainer (e.g., shap.Explainer)
-        # 2. Preparing background data
-        # 3. Computing SHAP values
-
-
         
         try:
-            # Vectorize input text
+
+            # VECTORIZE TEXT 
+            
             all_texts = self.background_texts + [input_text]
             vectors, word_to_idx = self._vectorize_text(all_texts)
-             # Last vector becomes our input
-            input_vector = vectors[-1:] 
-
-            # background
+            input_vector = vectors[-1:]  # Last vector is our input
+            
+            
+            # BACKGROUND DATA 
+            
             background_vectors, _ = self._prepare_background_data()
-
-            # explainer
+            
+            
+            # EXPLAINER
+            
             explainer = self._create_shap_explainer(background_vectors)
             if explainer is None:
-                return self._simple_explanation(input_text)
+                logger.warning("  ✗ Failed to create explainer, falling back to simple explanation")
+                return {
+                    "method": "SHAP",
+                    "status": "error",
+                    "error": "Failed to create SHAP explainer",
+                    "fallback": self._simple_explanation(input_text)
+                }
             
-            # SHAP values
+            
+            # SHAP VALUE
+            
             shap_values = self._compute_shap_values(explainer, input_vector, num_samples=100)
             if shap_values is None:
-                return self._simple_explanation(input_text)
+                logger.warning("  ✗ Failed to compute SHAP values, falling back to simple explanation")
+                return {
+                    "method": "SHAP",
+                    "status": "error",
+                    "error": "Failed to compute SHAP values",
+                    "fallback": self._simple_explanation(input_text)
+                }
             
-            # top features 
+            
+            # TOP FEATURES
+
+            # Reverse mapping: index -> word
             idx_to_word = {v: k for k, v in word_to_idx.items()}
-
-            # flatten
+            
+            # Flatten SHAP values 
             shap_vals_flat = shap_values[0] if len(np.array(shap_values).shape) > 1 else shap_values
-
-            # top indices
+            
+            # Get indices of top features by absolute SHAP value 
             top_indices = np.argsort(np.abs(shap_vals_flat))[-max_features:][::-1]
-
-            # feature list
+            
+            # Build feature explanation list
             top_features = []
             for idx in top_indices:
                 if idx in idx_to_word:
                     feature_name = idx_to_word[idx]
                     shap_value = float(shap_vals_flat[idx])
                     direction = "increases prediction" if shap_value > 0 else "decreases prediction"
+                    importance = round(abs(shap_value), 4)
                     
                     top_features.append({
                         "feature": feature_name,
                         "shap_value": round(shap_value, 4),
                         "direction": direction,
-                        "importance": round(abs(shap_value), 4)
+                        "importance": importance
                     })
-
-
-
-        except Exception as e:
-            logger.error(f"Error during vectorization: {e}")
+                    
+                   
+            
+            
+            
+            
             return {
-                "method": "SHAP",
-                "error": "Vectorization failed",
-                "fallback": self._simple_explanation(input_text)
+                "method": "SHAP (KernelExplainer)",
+                "status": "success",
+                "input_text": input_text,
+                "top_features": top_features,
+                "num_features_analyzed": len(word_to_idx),
+                "background_samples": len(self.background_texts),
+                "explanation": f"Top {len(top_features)} words driving the model's decision"
             }
         
-        logger.info("SHAP stub called - extend for full implementation")
-        
-        # For now, return a placeholder structure
-        return {
-            "method": "SHAP",
-            "status": "stub",
-            "note": "Extend this method for full SHAP implementation",
-            "fallback": self._simple_explanation(input_text)
-        }
+        # ERROR HANDLING: 
+        except Exception as e:
+            logger.error(f"SHAP explanation failed: {e}", exc_info=True)
+            return {
+                "method": "SHAP",
+                "status": "error",
+                "error": f"Explanation failed: {str(e)}",
+                "fallback": self._simple_explanation(input_text)
+            }
     
     def explain(self, input_text: str, max_features: int = 10, method: str = 'lime') -> Dict:
         """
