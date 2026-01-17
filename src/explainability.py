@@ -191,6 +191,21 @@ class LLMExplainer:
             # top indices
             top_indices = np.argsort(np.abs(shap_vals_flat))[-max_features:][::-1]
 
+            # feature list
+            top_features = []
+            for idx in top_indices:
+                if idx in idx_to_word:
+                    feature_name = idx_to_word[idx]
+                    shap_value = float(shap_vals_flat[idx])
+                    direction = "increases prediction" if shap_value > 0 else "decreases prediction"
+                    
+                    top_features.append({
+                        "feature": feature_name,
+                        "shap_value": round(shap_value, 4),
+                        "direction": direction,
+                        "importance": round(abs(shap_value), 4)
+                    })
+
 
 
         except Exception as e:
