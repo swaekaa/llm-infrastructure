@@ -181,6 +181,10 @@ class LLMExplainer:
             shap_values = self._compute_shap_values(explainer, input_vector, num_samples=100)
             if shap_values is None:
                 return self._simple_explanation(input_text)
+            
+            # top features 
+            idx_to_word = {v: k for k, v in word_to_idx.items()}
+
 
 
 
