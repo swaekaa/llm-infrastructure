@@ -137,7 +137,6 @@ class LLMExplainer:
         """
         Generate explanation using SHAP - COMPLETE IMPLEMENTATION.
         
-        
         Chains all steps: vectorize → prepare background → create explainer → compute values
         
         Args:
@@ -148,6 +147,7 @@ class LLMExplainer:
             Dictionary with SHAP explanation data
         """
         
+        # Check if SHAP library is available
         if not SHAP_AVAILABLE:
             return {
                 "method": "SHAP",
@@ -156,26 +156,18 @@ class LLMExplainer:
                 "fallback": self._simple_explanation(input_text)
             }
         
-        
         try:
-
-            # VECTORIZE TEXT 
-            
+            # VECTORIZE TEXT
             all_texts = self.background_texts + [input_text]
             vectors, word_to_idx = self._vectorize_text(all_texts)
             input_vector = vectors[-1:]  # Last vector is our input
             
-            
-            # BACKGROUND DATA 
-            
+            #  PREPARE BACKGROUND DATA
             background_vectors, _ = self._prepare_background_data()
             
-            
-            # EXPLAINER
-            
+            #  CREATE SHAP EXPLAINER
             explainer = self._create_shap_explainer(background_vectors)
             if explainer is None:
-                logger.warning("  ✗ Failed to create explainer, falling back to simple explanation")
                 return {
                     "method": "SHAP",
                     "status": "error",
@@ -183,12 +175,9 @@ class LLMExplainer:
                     "fallback": self._simple_explanation(input_text)
                 }
             
-            
-            # SHAP VALUE
-            
+            #  COMPUTE SHAP VALUES
             shap_values = self._compute_shap_values(explainer, input_vector, num_samples=100)
             if shap_values is None:
-                logger.warning("  ✗ Failed to compute SHAP values, falling back to simple explanation")
                 return {
                     "method": "SHAP",
                     "status": "error",
@@ -196,16 +185,14 @@ class LLMExplainer:
                     "fallback": self._simple_explanation(input_text)
                 }
             
-            
-            # TOP FEATURES
-
-            # Reverse mapping: index -> word
+            #  EXTRACT TOP FEATURES
+            # Create reverse mapping: index -> word
             idx_to_word = {v: k for k, v in word_to_idx.items()}
             
             # Flatten SHAP values 
-            shap_vals_flat = shap_values[0] if len(np.array(shap_values).shape) > 1 else shap_values
+            shap_vals_flat = np.array(shap_values).reshape(-1)
             
-            # Get indices of top features by absolute SHAP value 
+            # Get indices of top features sorted by absolute SHAP value 
             top_indices = np.argsort(np.abs(shap_vals_flat))[-max_features:][::-1]
             
             # Build feature explanation list
@@ -223,12 +210,8 @@ class LLMExplainer:
                         "direction": direction,
                         "importance": importance
                     })
-                    
-                   
             
-            
-            
-            
+            # Return complete explanation
             return {
                 "method": "SHAP (KernelExplainer)",
                 "status": "success",
@@ -239,9 +222,7 @@ class LLMExplainer:
                 "explanation": f"Top {len(top_features)} words driving the model's decision"
             }
         
-        # ERROR HANDLING: 
         except Exception as e:
-            logger.error(f"SHAP explanation failed: {e}", exc_info=True)
             return {
                 "method": "SHAP",
                 "status": "error",
