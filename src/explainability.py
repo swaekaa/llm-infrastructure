@@ -185,6 +185,8 @@ class LLMExplainer:
             # top features 
             idx_to_word = {v: k for k, v in word_to_idx.items()}
 
+            # flatten
+            shap_vals_flat = shap_values[0] if len(np.array(shap_values).shape) > 1 else shap_values
 
 
 
