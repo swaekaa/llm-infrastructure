@@ -176,6 +176,11 @@ class LLMExplainer:
             explainer = self._create_shap_explainer(background_vectors)
             if explainer is None:
                 return self._simple_explanation(input_text)
+            
+            # SHAP values
+            shap_values = self._compute_shap_values(explainer, input_vector, num_samples=100)
+            if shap_values is None:
+                return self._simple_explanation(input_text)
 
 
 
