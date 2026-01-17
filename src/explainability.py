@@ -159,6 +159,24 @@ class LLMExplainer:
         # 1. Creating a SHAP explainer (e.g., shap.Explainer)
         # 2. Preparing background data
         # 3. Computing SHAP values
+
+
+        
+        try:
+            # Vectorize input text
+            all_texts = self.background_texts + [input_text]
+            vectors, word_to_idx = self._vectorize_text(all_texts)
+            input_vector = vectors[-1:]  # Last vector becomes our input
+
+
+
+        except Exception as e:
+            logger.error(f"Error during vectorization: {e}")
+            return {
+                "method": "SHAP",
+                "error": "Vectorization failed",
+                "fallback": self._simple_explanation(input_text)
+            }
         
         logger.info("SHAP stub called - extend for full implementation")
         
