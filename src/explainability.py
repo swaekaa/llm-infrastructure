@@ -172,6 +172,11 @@ class LLMExplainer:
             # background
             background_vectors, _ = self._prepare_background_data()
 
+            # explainer
+            explainer = self._create_shap_explainer(background_vectors)
+            if explainer is None:
+                return self._simple_explanation(input_text)
+
 
 
         except Exception as e:
