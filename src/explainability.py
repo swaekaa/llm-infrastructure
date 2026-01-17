@@ -166,7 +166,11 @@ class LLMExplainer:
             # Vectorize input text
             all_texts = self.background_texts + [input_text]
             vectors, word_to_idx = self._vectorize_text(all_texts)
-            input_vector = vectors[-1:]  # Last vector becomes our input
+             # Last vector becomes our input
+            input_vector = vectors[-1:] 
+
+            # background
+            background_vectors, _ = self._prepare_background_data()
 
 
 
